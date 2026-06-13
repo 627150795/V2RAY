@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a reproducible problem
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Include the client name/version and steps to reproduce. Remove subscription URLs, credentials, node addresses, and logs containing private data.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: ProxyMonitor version
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Windows and proxy client versions
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Diagnostic output
+      description: Optional sanitized output from `ProxyMonitor.exe --diagnose`.
+

@@ -1,0 +1,15 @@
+bin/
+obj/
+publish/
+artifacts/
+.vs/
+.idea/
+*.user
+*.suo
+*.pdb
+*.db
+*.db-shm
+*.db-wal
+settings.json
+ui-preview.png
+

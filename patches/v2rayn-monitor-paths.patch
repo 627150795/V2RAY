@@ -1,0 +1,28 @@
+diff --git a/v2rayN/ServiceLib/Common/Utils.cs b/v2rayN/ServiceLib/Common/Utils.cs
+index 9c2bd4af..17812ab6 100644
+--- a/v2rayN/ServiceLib/Common/Utils.cs
++++ b/v2rayN/ServiceLib/Common/Utils.cs
+@@ -984,6 +984,12 @@ public class Utils
+ 
+     public static string StartupPath()
+     {
++        var monitorRoot = Environment.GetEnvironmentVariable("V2RAYN_MONITOR_ROOT");
++        if (!string.IsNullOrWhiteSpace(monitorRoot))
++        {
++            return monitorRoot;
++        }
++
+         if (Environment.GetEnvironmentVariable(Global.LocalAppData) == "1")
+         {
+             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "v2rayN");
+@@ -1041,7 +1047,8 @@ public class Utils
+ 
+     public static string GetBinPath(string filename, string? coreType = null)
+     {
+-        var tempPath = Path.Combine(StartupPath(), "bin");
++        var monitorBin = Environment.GetEnvironmentVariable("V2RAYN_MONITOR_BIN");
++        var tempPath = string.IsNullOrWhiteSpace(monitorBin) ? Path.Combine(StartupPath(), "bin") : monitorBin;
+         if (!Directory.Exists(tempPath))
+         {
+             Directory.CreateDirectory(tempPath);
+

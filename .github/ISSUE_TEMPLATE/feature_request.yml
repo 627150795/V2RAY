@@ -1,0 +1,15 @@
+name: Feature request
+description: Propose a client integration or monitoring improvement
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    attributes:
+      label: Problem and proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Client/API documentation
+      description: Link to public documentation or sanitized configuration examples.
+

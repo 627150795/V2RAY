@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>ProxyMonitor</AssemblyName>
+    <RootNamespace>V2rayNMonitor</RootNamespace>
+    <Version>0.4.3</Version>
+    <Description>Privacy-first Windows proxy node reliability monitor.</Description>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <PackageReference Include="YamlDotNet" Version="18.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\upstream-v2rayN\v2rayN\ServiceLib\ServiceLib.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="COMPATIBILITY.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="CLIENT_COMPATIBILITY.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
