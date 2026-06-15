@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.4
+
+- Changed fastest-node recommendations to require reliability eligibility and rank by rolling median speed.
+- Added a 10% speed replacement threshold to prevent minor measurement noise from changing the global fastest recommendation.
+- Made subscription cards recalculate all three recommendations within the selected group.
+- Added a header badge showing the active recommendation scope.
+- Displayed success rates with one decimal place so values just below a recommendation threshold are no longer rounded up misleadingly.
+
 ## 0.4.3
 
 - Added auditable recommendation diagnostics with candidate eligibility, replacement margins, and challenger score gaps.

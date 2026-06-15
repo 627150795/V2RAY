@@ -31,6 +31,12 @@ public static class SelfTest
         Check(RecommendationSelector.Select("old", [incumbent, close], x => x.CombinedScore, 4)?.NodeId == "old", "综合推荐小幅领先不跳动", failures);
         Check(RecommendationSelector.Select("old", [incumbent, clear], x => x.CombinedScore, 4)?.NodeId == "clear", "综合推荐明显领先才替换", failures);
         Check(RecommendationSelector.Select("old", [clear], x => x.CombinedScore, 4)?.NodeId == "clear", "当前推荐失效立即替换", failures);
+        var fastOld = new NodeScore { NodeId = "fast-old", MedianSpeed = 1_000_000 };
+        var fastClose = new NodeScore { NodeId = "fast-close", MedianSpeed = 1_090_000 };
+        var fastClear = new NodeScore { NodeId = "fast-clear", MedianSpeed = 1_110_000 };
+        Check(RecommendationSelector.SelectByRatio("fast-old", [fastOld, fastClose], x => x.MedianSpeed, .10)?.NodeId == "fast-old", "速度推荐小幅领先不跳动", failures);
+        Check(RecommendationSelector.SelectByRatio("fast-old", [fastOld, fastClear], x => x.MedianSpeed, .10)?.NodeId == "fast-clear", "速度推荐明显更快才替换", failures);
+        Check(RecommendationSelector.SelectByRatio("fast-old", [fastClear], x => x.MedianSpeed, .10)?.NodeId == "fast-clear", "速度推荐失效立即替换", failures);
         foreach (var test in CompatibilityTests.Run())
         {
             Check(test.Passed, $"兼容矩阵：{test.Name} ({test.Detail})", failures);

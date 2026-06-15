@@ -71,7 +71,7 @@ public sealed class NodeScore
     public string DelayText => MedianDelay > 0 ? $"{MedianDelay:F0} ms" : "-";
     public string SpeedText => SpeedSamples == 0 || MedianSpeed < QualityThresholds.MinUsefulSpeedBytesPerSecond ? "无有效测速" :
         MedianSpeed < 1024 * 1024 ? $"{MedianSpeed / 1024:F0} KiB/s" : $"{MedianSpeed / 1024 / 1024:F2} MiB/s";
-    public string SuccessText => $"{SuccessRate:P0}";
+    public string SuccessText => $"{SuccessRate:P1}";
     public string CombinedText => $"{CombinedScore:F1}";
     public string StabilityText => $"{StabilityScore:F1}";
     public string SpeedScoreText => $"{SpeedScore:F1}";

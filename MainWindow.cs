@@ -18,6 +18,8 @@ public sealed class MainWindow : Window
     private readonly TextBlock _status = new();
     private readonly Border _stateBadge = new();
     private readonly TextBlock _stateText = new();
+    private readonly Border _scopeBadge = new();
+    private readonly TextBlock _scopeText = new();
     private readonly WrapPanel _subscriptions = new() { Margin = new Thickness(0, 0, 0, 8) };
     private readonly WrapPanel _clients = new() { Margin = new Thickness(0, 0, 0, 8) };
     private List<NodeScore> _allScores = [];
@@ -74,6 +76,15 @@ public sealed class MainWindow : Window
         _stateBadge.Margin = new Thickness(10, 5, 0, 0);
         _stateBadge.VerticalAlignment = VerticalAlignment.Center;
         titleLine.Children.Add(_stateBadge);
+        _scopeText.Foreground = UiColors.Text;
+        _scopeText.FontSize = 12;
+        _scopeBadge.Child = _scopeText;
+        _scopeBadge.Background = UiColors.Empty;
+        _scopeBadge.CornerRadius = new CornerRadius(8);
+        _scopeBadge.Padding = new Thickness(8, 3, 8, 3);
+        _scopeBadge.Margin = new Thickness(6, 5, 0, 0);
+        _scopeBadge.VerticalAlignment = VerticalAlignment.Center;
+        titleLine.Children.Add(_scopeBadge);
         title.Children.Add(titleLine);
         title.Children.Add(new TextBlock { Text = "颜色越绿表现越好，越红越需要避开；灰色表示数据不足。", Foreground = UiColors.Muted, Margin = new Thickness(0, 1, 0, 0) });
         header.Children.Add(title);
@@ -146,21 +157,11 @@ public sealed class MainWindow : Window
         try
         {
             _allScores = _preview ? PreviewData.Scores() : _engine.Store.Scores(_engine.Nodes(), _settings);
+            if (_selectedSubscription is not null && !_allScores.Any(x => SubscriptionKey(x) == _selectedSubscription))
+                _selectedSubscription = null;
             RefreshClients(); RefreshSubscriptions(); ApplySubscriptionFilter();
-            var stableReady = _allScores.Where(x => x.StableEnough).ToList();
-            var speedReady = _allScores.Where(x => x.SpeedEnough).ToList();
-            var provisionalReady = stableReady.Count > 0 ? stableReady : _allScores.Where(x => x.Samples > 0).ToList();
-            var hint = RecommendationHint();
-            var stable = RecommendationSelector.Select(_settings.StableRecommendationNodeId, stableReady, x => x.StabilityScore, 3);
-            var fastCandidates = speedReady.Count > 0 ? speedReady : provisionalReady;
-            var fastScore = speedReady.Count > 0 ? new Func<NodeScore, double>(x => x.SpeedScore) : x => x.CombinedScore;
-            var fast = RecommendationSelector.Select(_settings.FastRecommendationNodeId, fastCandidates, fastScore, 5);
-            var bestCandidates = speedReady.Count > 0 ? speedReady : provisionalReady;
-            var best = RecommendationSelector.Select(_settings.BestRecommendationNodeId, bestCandidates, x => x.CombinedScore, 4);
-            RememberRecommendations(stable, fast, best);
-            SetCard(_stable, stable, "稳定分", x => x.StabilityScore, StableHint());
-            SetCard(_fast, fast, speedReady.Count > 0 ? "速度分" : "测速候选分", fastScore, hint);
-            SetCard(_best, best, speedReady.Count > 0 ? "综合分" : "临时综合分", x => x.CombinedScore, hint);
+            RefreshRecommendations();
+            UpdateScopeBadge();
             var clients = _allScores.Select(x => x.ClientName).Distinct().Count();
             var v2 = File.Exists(_settings.V2rayNPath) ? V2rayNReader.Inspect(_settings.V2rayNPath) : null;
             var capability = v2 is null ? "" : $" · v2rayN {v2.Version}: 读取{Yes(v2.CanRead)}/测试{Yes(v2.CanTest)}/切换{Yes(v2.CanSwitch)}";
@@ -180,6 +181,37 @@ public sealed class MainWindow : Window
         _settings.FastRecommendationNodeId = fast?.NodeId;
         _settings.BestRecommendationNodeId = best?.NodeId;
         Paths.SaveSettings(_settings);
+    }
+
+    private void RefreshRecommendations()
+    {
+        var scope = ActiveScores();
+        var stableReady = scope.Where(x => x.StableEnough).ToList();
+        var speedReady = scope.Where(x => x.SpeedEnough).ToList();
+        var provisionalReady = stableReady.Count > 0 ? stableReady : scope.Where(x => x.Samples > 0).ToList();
+        var hint = RecommendationHint(scope);
+
+        NodeScore? stable;
+        NodeScore? fast;
+        NodeScore? best;
+        if (_selectedSubscription is null)
+        {
+            stable = RecommendationSelector.Select(_settings.StableRecommendationNodeId, stableReady, x => x.StabilityScore, 3);
+            fast = RecommendationSelector.SelectByRatio(_settings.FastRecommendationNodeId, speedReady, x => x.MedianSpeed, .10);
+            var bestCandidates = speedReady.Count > 0 ? speedReady : provisionalReady;
+            best = RecommendationSelector.Select(_settings.BestRecommendationNodeId, bestCandidates, x => x.CombinedScore, 4);
+            RememberRecommendations(stable, fast, best);
+        }
+        else
+        {
+            stable = stableReady.OrderByDescending(x => x.StabilityScore).FirstOrDefault();
+            fast = speedReady.OrderByDescending(x => x.MedianSpeed).FirstOrDefault();
+            best = (speedReady.Count > 0 ? speedReady : provisionalReady).OrderByDescending(x => x.CombinedScore).FirstOrDefault();
+        }
+
+        SetCard(_stable, stable, "稳定分", x => x.StabilityScore, StableHint(scope));
+        SetCard(_fast, fast, "中位速度", x => x.SpeedScore, hint, x => $"中位速度 {x.SpeedText}");
+        SetCard(_best, best, speedReady.Count > 0 ? "综合分" : "临时综合分", x => x.CombinedScore, hint);
     }
 
     private void RequestRefresh()
@@ -273,9 +305,19 @@ public sealed class MainWindow : Window
             },
             ToolTip = $"{name}\n可用 {available}/{scores.Count}  ·  {availability:P0}\n平均延迟 {(delay > 0 ? $"{delay:F0} ms" : "-")}\n最佳 {best?.Name ?? "-"}"
         };
-        button.Click += (_, _) => { _selectedSubscription = filter; RefreshSubscriptions(); ApplySubscriptionFilter(); };
+        button.Click += (_, _) =>
+        {
+            _selectedSubscription = filter;
+            RefreshSubscriptions();
+            ApplySubscriptionFilter();
+            RefreshRecommendations();
+            UpdateScopeBadge();
+        };
         _subscriptions.Children.Add(button);
     }
+
+    private List<NodeScore> ActiveScores() =>
+        _allScores.Where(x => _selectedSubscription is null || SubscriptionKey(x) == _selectedSubscription).ToList();
 
     private void ApplySubscriptionFilter()
     {
@@ -283,26 +325,33 @@ public sealed class MainWindow : Window
         foreach (var score in _allScores.Where(x => _selectedSubscription is null || SubscriptionKey(x) == _selectedSubscription)) _rows.Add(score);
     }
 
-    private string StableHint()
+    private void UpdateScopeBadge()
     {
-        var maxDelay = _allScores.Count == 0 ? 0 : _allScores.Max(x => x.Samples);
+        _scopeText.Text = $"范围：{_selectedSubscription ?? "全部订阅"}";
+        _scopeBadge.ToolTip = $"当前推荐范围：{_selectedSubscription ?? "全部订阅"}";
+    }
+
+    private static string StableHint(IReadOnlyList<NodeScore> scores)
+    {
+        var maxDelay = scores.Count == 0 ? 0 : scores.Max(x => x.Samples);
         if (maxDelay < QualityThresholds.RequiredDelaySamples) return $"还差延迟样本：当前最多 {maxDelay}/{QualityThresholds.RequiredDelaySamples}。";
         return "延迟样本已够，但暂时没有成功率达标且近期失败少的节点。";
     }
 
-    private string RecommendationHint()
+    private string RecommendationHint(IReadOnlyList<NodeScore> scores)
     {
-        var maxDelay = _allScores.Count == 0 ? 0 : _allScores.Max(x => x.Samples);
-        var maxSpeed = _allScores.Count == 0 ? 0 : _allScores.Max(x => x.SpeedSamples);
-        var delayReady = _allScores.Count(x => x.StableEnough);
-        var speedReady = _allScores.Count(x => x.SpeedEnough);
+        var maxDelay = scores.Count == 0 ? 0 : scores.Max(x => x.Samples);
+        var maxSpeed = scores.Count == 0 ? 0 : scores.Max(x => x.SpeedSamples);
+        var delayReady = scores.Count(x => x.StableEnough);
+        var speedReady = scores.Count(x => x.SpeedEnough);
         if (maxDelay < QualityThresholds.RequiredDelaySamples) return $"还差延迟样本：当前最多 {maxDelay}/{QualityThresholds.RequiredDelaySamples}；有效速度样本 {maxSpeed} 个。";
         if (delayReady == 0) return "延迟样本已够，但没有成功率达标且近期失败少的节点。";
         if (speedReady == 0) return $"延迟样本已够，缺少有效速度样本；点“立即轻量测速”或等每日 {TimeSpan.Parse(_settings.DailySpeedTime):hh\\:mm} 测速。";
         return "已有样本，但没有同时满足稳定性、速度和近期失败门槛的节点。";
     }
 
-    private static void SetCard(Border target, NodeScore? node, string scoreLabel, Func<NodeScore, double> score, string emptyText)
+    private static void SetCard(Border target, NodeScore? node, string scoreLabel, Func<NodeScore, double> score, string emptyText,
+        Func<NodeScore, string>? valueText = null)
     {
         var value = node is null ? 0 : score(node);
         target.Background = node is null ? UiColors.Empty : UiColors.ForScore(value);
@@ -310,7 +359,7 @@ public sealed class MainWindow : Window
         panel.Children.Add(new TextBlock { Text = node?.Name ?? "还差样本", FontSize = 14, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Foreground = UiColors.Text });
         panel.Children.Add(new TextBlock
         {
-            Text = node is null ? emptyText : $"{node.ClientName} · {node.Subscription} · {scoreLabel} {value:F1}{(node.DataEnough ? "" : $" · {node.Status}")}\n成功率 {node.SuccessText} · 延迟 {node.DelayText} · 速度 {node.SpeedText}",
+            Text = node is null ? emptyText : $"{node.ClientName} · {node.Subscription} · {(valueText?.Invoke(node) ?? $"{scoreLabel} {value:F1}")}{(node.DataEnough ? "" : $" · {node.Status}")}\n成功率 {node.SuccessText} · 延迟 {node.DelayText} · 速度 {node.SpeedText}",
             Margin = new Thickness(0, 2, 0, 0), Foreground = UiColors.Text, TextWrapping = TextWrapping.Wrap,
             FontSize = 12, LineHeight = 15
         });

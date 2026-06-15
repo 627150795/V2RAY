@@ -16,6 +16,7 @@ Proxy clients usually show only a momentary latency result. A node that looks fa
 - Runs a serialized, capped lightweight speed test once per day.
 - Stores rolling history locally in SQLite.
 - Recommends stable, fast, and balanced nodes with recommendation hysteresis.
+- Recalculates all recommendations within a clicked subscription group.
 - Requires confirmation and a live pre-switch health check before v2rayN switching.
 - Runs in the tray, starts with Windows by default, and remains idle at near-zero CPU.
 
@@ -43,6 +44,7 @@ See [CLIENT_COMPATIBILITY.md](CLIENT_COMPATIBILITY.md) and [COMPATIBILITY.md](CO
 - Formal stable recommendations require at least 24 delay samples.
 - Formal speed and balanced recommendations require at least 3 valid speed samples.
 - Long-term and recent success rates must both reach 90%.
+- Fastest-node ranking uses rolling median speed only after the node passes reliability requirements.
 - Stability combines availability, recent availability, jitter, and recent P95 latency.
 - Balanced score defaults to stability 45%, speed 30%, and latency 25%.
 - Recent degradation and consecutive failures receive strong penalties.

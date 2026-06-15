@@ -46,8 +46,7 @@ public static class Diagnostics
         var provisionalReady = stableReady.Count > 0 ? stableReady : scores.Where(x => x.Samples > 0).ToList();
 
         PrintRecommendation("stable", settings.StableRecommendationNodeId, stableReady, x => x.StabilityScore, 3, scores);
-        PrintRecommendation("fastest", settings.FastRecommendationNodeId, speedReady.Count > 0 ? speedReady : provisionalReady,
-            speedReady.Count > 0 ? x => x.SpeedScore : x => x.CombinedScore, 5, scores);
+        PrintRatioRecommendation("fastest", settings.FastRecommendationNodeId, speedReady, x => x.MedianSpeed, .10, scores);
         PrintRecommendation("combined", settings.BestRecommendationNodeId, speedReady.Count > 0 ? speedReady : provisionalReady,
             x => x.CombinedScore, 4, scores);
         return await Task.FromResult(0);
@@ -70,6 +69,26 @@ public static class Diagnostics
             CurrentEligible = current is not null,
             Current = Summary(current ?? remembered, score),
             LeadOverCurrent = best is null || current is null ? (double?)null : score(best) - score(current)
+        }));
+    }
+
+    private static void PrintRatioRecommendation(string category, string? currentNodeId, IReadOnlyList<NodeScore> candidates,
+        Func<NodeScore, double> score, double replacementRatio, IReadOnlyList<NodeScore> allScores)
+    {
+        var best = candidates.OrderByDescending(score).FirstOrDefault();
+        var current = candidates.FirstOrDefault(x => x.NodeId == currentNodeId);
+        var selected = RecommendationSelector.SelectByRatio(currentNodeId, candidates, score, replacementRatio);
+        var remembered = allScores.FirstOrDefault(x => x.NodeId == currentNodeId);
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            Category = category,
+            CandidateCount = candidates.Count,
+            ReplacementRatio = $"{replacementRatio:P0}",
+            Selected = Summary(selected, score),
+            BestChallenger = Summary(best, score),
+            CurrentEligible = current is not null,
+            Current = Summary(current ?? remembered, score),
+            LeadRatioOverCurrent = best is null || current is null || score(current) <= 0 ? (double?)null : score(best) / score(current) - 1
         }));
     }
 

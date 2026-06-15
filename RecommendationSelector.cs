@@ -12,4 +12,15 @@ public static class RecommendationSelector
         if (current is null) return best;
         return score(best) - score(current) >= replacementMargin ? best : current;
     }
+
+    public static NodeScore? SelectByRatio(string? currentNodeId, IReadOnlyList<NodeScore> candidates,
+        Func<NodeScore, double> score, double replacementRatio)
+    {
+        var best = candidates.OrderByDescending(score).FirstOrDefault();
+        if (best is null) return null;
+
+        var current = candidates.FirstOrDefault(x => x.NodeId == currentNodeId);
+        if (current is null) return best;
+        return score(best) >= score(current) * (1 + replacementRatio) ? best : current;
+    }
 }
