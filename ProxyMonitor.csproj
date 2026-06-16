@@ -8,7 +8,8 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>ProxyMonitor</AssemblyName>
     <RootNamespace>V2rayNMonitor</RootNamespace>
-    <Version>0.4.4</Version>
+    <Version>0.4.5</Version>
+    <ApplicationIcon>assets\ProxyMonitor.ico</ApplicationIcon>
     <Description>Privacy-first Windows proxy node reliability monitor.</Description>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
   </PropertyGroup>
@@ -23,5 +24,6 @@
     <None Include="README.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="COMPATIBILITY.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="CLIENT_COMPATIBILITY.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="assets\ProxyMonitor.ico" Link="ProxyMonitor.ico" TargetPath="ProxyMonitor.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

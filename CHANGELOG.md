@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.5
+
+- Added a dedicated ProxyMonitor application icon for the window, executable, tray, installer, and shortcuts.
+- Added a default desktop shortcut task to the installer.
+- Made the installer write the Windows startup command explicitly with the background launch argument.
+
 ## 0.4.4
 
 - Changed fastest-node recommendations to require reliability eligibility and rank by rolling median speed.

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
 
 namespace V2rayNMonitor;
@@ -25,6 +26,7 @@ public sealed class MainWindow : Window
     private List<NodeScore> _allScores = [];
     private string? _selectedSubscription;
     private readonly Forms.NotifyIcon? _tray;
+    private readonly System.Drawing.Icon? _trayIcon;
     private readonly System.Windows.Threading.DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
     private readonly DateTime _started = DateTime.Now;
     private bool _refreshPending;
@@ -37,6 +39,7 @@ public sealed class MainWindow : Window
         Title = "多客户端节点监控";
         Width = 1260; Height = 900; MinWidth = 980; MinHeight = 760;
         Background = UiColors.Window;
+        Icon = LoadWindowIcon();
         _settings.V2rayNPath = File.Exists(_settings.V2rayNPath) ? _settings.V2rayNPath : Paths.LocateV2rayN() ?? "";
         if (!preview) { Paths.SaveSettings(_settings); StartupManager.Apply(_settings.StartWithWindows); }
         _engine = new(_settings);
@@ -46,16 +49,29 @@ public sealed class MainWindow : Window
         Closing += (_, e) => { if (!_preview) { e.Cancel = true; Hide(); } };
 
         if (preview) { Refresh(); return; }
-        _tray = new Forms.NotifyIcon { Visible = true, Text = "多客户端节点监控", Icon = System.Drawing.SystemIcons.Application };
+        _trayIcon = LoadTrayIcon();
+        _tray = new Forms.NotifyIcon { Visible = true, Text = "多客户端节点监控", Icon = _trayIcon };
         _tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowDashboard);
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("打开", null, (_, _) => Dispatcher.Invoke(ShowDashboard));
         menu.Items.Add("立即测延迟", null, async (_, _) => await _engine.RunAsync("delay"));
-        menu.Items.Add("退出", null, (_, _) => Dispatcher.Invoke(() => { _tray.Dispose(); System.Windows.Application.Current.Shutdown(); }));
+        menu.Items.Add("退出", null, (_, _) => Dispatcher.Invoke(() => { _tray.Dispose(); _trayIcon?.Dispose(); System.Windows.Application.Current.Shutdown(); }));
         _tray.ContextMenuStrip = menu;
         Loaded += (_, _) => { Refresh(); if (startHidden) Hide(); };
         _timer.Tick += async (_, _) => await Schedule();
         _timer.Start();
+    }
+
+    private static ImageSource? LoadWindowIcon()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "ProxyMonitor.ico");
+        return File.Exists(path) ? BitmapFrame.Create(new Uri(path, UriKind.Absolute)) : null;
+    }
+
+    private static System.Drawing.Icon LoadTrayIcon()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "ProxyMonitor.ico");
+        return File.Exists(path) ? new System.Drawing.Icon(path) : System.Drawing.SystemIcons.Application;
     }
 
     private UIElement Build()
