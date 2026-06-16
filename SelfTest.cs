@@ -15,6 +15,14 @@ public static class SelfTest
         Check(ReferenceEquals(UiColors.ForScore(10), UiColors.Bad), "低分显示红色", failures);
         Check(ReferenceEquals(UiColors.ForScore(0), UiColors.Empty), "无数据显示灰色", failures);
 
+        var emptyDelay = new NodeScore { Name = "empty" };
+        var validDelay = new NodeScore { Name = "valid", Samples = 1, MedianDelay = 120 };
+        Check(new NodeScoreComparer(nameof(NodeScore.MedianDelay), System.ComponentModel.ListSortDirection.Ascending).Compare(emptyDelay, validDelay) > 0, "排序升序时空延迟排最后", failures);
+        Check(new NodeScoreComparer(nameof(NodeScore.MedianDelay), System.ComponentModel.ListSortDirection.Descending).Compare(emptyDelay, validDelay) > 0, "排序降序时空延迟排最后", failures);
+        var emptySpeed = new NodeScore { Name = "empty-speed", Samples = 1 };
+        var validSpeed = new NodeScore { Name = "valid-speed", Samples = 1, SpeedSamples = 1, MedianSpeed = 1024 * 1024 };
+        Check(new NodeScoreComparer(nameof(NodeScore.MedianSpeed), System.ComponentModel.ListSortDirection.Descending).Compare(emptySpeed, validSpeed) > 0, "排序时空速度排最后", failures);
+
         var ready = new NodeScore { Samples = 24, SpeedSamples = 3, MedianSpeed = QualityThresholds.MinUsefulSpeedBytesPerSecond, SuccessRate = .95, RecentSuccessRate = .95, RecentFailures = 0 };
         var sparse = new NodeScore { Samples = 23, SpeedSamples = 3, SuccessRate = .95, RecentSuccessRate = .95, RecentFailures = 0 };
         var unreliable = new NodeScore { Samples = 24, SpeedSamples = 3, SuccessRate = .8, RecentSuccessRate = .95, RecentFailures = 0 };

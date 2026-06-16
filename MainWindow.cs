@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
@@ -364,6 +365,7 @@ public sealed class MainWindow : Window
     private void ApplyCurrentSort()
     {
         var view = CollectionViewSource.GetDefaultView(_rows);
+        if (view is ListCollectionView listView) listView.CustomSort = null;
         view.SortDescriptions.Clear();
         foreach (var pair in _sortColumns)
         {
@@ -371,7 +373,10 @@ public sealed class MainWindow : Window
             pair.Key.SortDirection = null;
         }
         if (_sortProperty is null) return;
-        view.SortDescriptions.Add(new SortDescription(_sortProperty, _sortDirection));
+        if (view is ListCollectionView sortableView)
+            sortableView.CustomSort = new NodeScoreComparer(_sortProperty, _sortDirection);
+        else
+            view.SortDescriptions.Add(new SortDescription(_sortProperty, _sortDirection));
         foreach (var pair in _sortColumns.Where(x => x.Value.Property == _sortProperty))
         {
             pair.Key.Header = $"{pair.Value.Header} {(_sortDirection == ListSortDirection.Descending ? "↓" : "↑")}";
@@ -500,6 +505,59 @@ public sealed class MainWindow : Window
 public enum MetricKind { Success, Delay, Speed, Score, Confidence }
 
 public sealed record SortColumnInfo(string Header, string Property, bool FirstDescending);
+
+public sealed class NodeScoreComparer(string property, ListSortDirection direction) : IComparer
+{
+    public int Compare(object? x, object? y)
+    {
+        if (ReferenceEquals(x, y)) return 0;
+        if (x is not NodeScore left) return 1;
+        if (y is not NodeScore right) return -1;
+
+        var leftHasValue = HasSortValue(left, property);
+        var rightHasValue = HasSortValue(right, property);
+        if (!leftHasValue && !rightHasValue) return TieBreak(left, right);
+        if (!leftHasValue) return 1;
+        if (!rightHasValue) return -1;
+
+        var result = Value(left, property).CompareTo(Value(right, property));
+        if (direction == ListSortDirection.Descending) result = -result;
+        return result != 0 ? result : TieBreak(left, right);
+    }
+
+    private static bool HasSortValue(NodeScore score, string property) => property switch
+    {
+        nameof(NodeScore.SuccessRate) => score.Samples > 0,
+        nameof(NodeScore.MedianDelay) => score.Samples > 0 && score.MedianDelay > 0,
+        nameof(NodeScore.MedianSpeed) => score.SpeedSamples > 0 && score.MedianSpeed >= QualityThresholds.MinUsefulSpeedBytesPerSecond,
+        nameof(NodeScore.StabilityScore) => score.Samples > 0,
+        nameof(NodeScore.CombinedScore) => score.Samples > 0,
+        nameof(NodeScore.Samples) => score.Samples > 0,
+        nameof(NodeScore.Confidence) => score.Samples > 0 || score.SpeedSamples > 0,
+        _ => true
+    };
+
+    private static double Value(NodeScore score, string property) => property switch
+    {
+        nameof(NodeScore.SuccessRate) => score.SuccessRate,
+        nameof(NodeScore.MedianDelay) => score.MedianDelay,
+        nameof(NodeScore.MedianSpeed) => score.MedianSpeed,
+        nameof(NodeScore.StabilityScore) => score.StabilityScore,
+        nameof(NodeScore.CombinedScore) => score.CombinedScore,
+        nameof(NodeScore.Samples) => score.Samples,
+        nameof(NodeScore.Confidence) => score.Confidence,
+        _ => 0
+    };
+
+    private static int TieBreak(NodeScore left, NodeScore right)
+    {
+        var client = string.Compare(left.ClientName, right.ClientName, StringComparison.CurrentCultureIgnoreCase);
+        if (client != 0) return client;
+        var subscription = string.Compare(left.Subscription, right.Subscription, StringComparison.CurrentCultureIgnoreCase);
+        if (subscription != 0) return subscription;
+        return string.Compare(left.Name, right.Name, StringComparison.CurrentCultureIgnoreCase);
+    }
+}
 
 public sealed class MetricBrushConverter(MetricKind kind) : IValueConverter
 {

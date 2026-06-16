@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.7
+
+- Kept rows with missing metric data at the bottom for metric sorting in both ascending and descending directions.
+- Preserved the visible sort arrow behavior while using data-aware ordering for latency, speed, scores, samples, and status.
+
 ## 0.4.6
 
 - Added explicit table header sorting with visible direction arrows.
