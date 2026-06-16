@@ -25,8 +25,8 @@ jobs:
         run: Compress-Archive -Path artifacts/ProxyMonitor-portable/* -DestinationPath artifacts/ProxyMonitor-portable.zip
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           generate_release_notes: true
           files: |
             artifacts/ProxyMonitor-Setup-*.exe
             artifacts/ProxyMonitor-portable.zip
-

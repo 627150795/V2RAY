@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,10 +22,13 @@ public sealed class MainWindow : Window
     private readonly TextBlock _stateText = new();
     private readonly Border _scopeBadge = new();
     private readonly TextBlock _scopeText = new();
+    private readonly Dictionary<DataGridColumn, SortColumnInfo> _sortColumns = [];
     private readonly WrapPanel _subscriptions = new() { Margin = new Thickness(0, 0, 0, 8) };
     private readonly WrapPanel _clients = new() { Margin = new Thickness(0, 0, 0, 8) };
     private List<NodeScore> _allScores = [];
     private string? _selectedSubscription;
+    private string? _sortProperty;
+    private ListSortDirection _sortDirection;
     private readonly Forms.NotifyIcon? _tray;
     private readonly System.Drawing.Icon? _trayIcon;
     private readonly System.Windows.Threading.DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -152,16 +156,17 @@ public sealed class MainWindow : Window
             RowBackground = Brushes.White, AlternatingRowBackground = UiColors.Alternate, AlternationCount = 2,
             BorderBrush = UiColors.Border, RowHeight = 28, HeadersVisibility = DataGridHeadersVisibility.Column
         };
-        grid.Columns.Add(TextColumn("客户端", "ClientName", 115));
-        grid.Columns.Add(TextColumn("节点", "Name", 225));
-        grid.Columns.Add(TextColumn("订阅", "Subscription", 165));
-        grid.Columns.Add(MetricColumn("延迟成功率", "SuccessText", "SuccessRate", MetricKind.Success, 82));
-        grid.Columns.Add(MetricColumn("中位延迟", "DelayText", "MedianDelay", MetricKind.Delay, 88));
-        grid.Columns.Add(MetricColumn("中位速度", "SpeedText", "MedianSpeed", MetricKind.Speed, 105));
-        grid.Columns.Add(MetricColumn("稳定分", "StabilityText", "StabilityScore", MetricKind.Score, 76));
-        grid.Columns.Add(MetricColumn("综合分", "CombinedText", "CombinedScore", MetricKind.Score, 76));
-        grid.Columns.Add(TextColumn("样本", "SampleText", 112));
-        grid.Columns.Add(MetricColumn("状态", "Status", "Confidence", MetricKind.Confidence, 140));
+        AddColumn(grid, TextColumn("客户端", "ClientName", 115), "客户端", "ClientName", false);
+        AddColumn(grid, TextColumn("节点", "Name", 225), "节点", "Name", false);
+        AddColumn(grid, TextColumn("订阅", "Subscription", 165), "订阅", "Subscription", false);
+        AddColumn(grid, MetricColumn("延迟成功率", "SuccessText", "SuccessRate", MetricKind.Success, 82), "延迟成功率", "SuccessRate", true);
+        AddColumn(grid, MetricColumn("中位延迟", "DelayText", "MedianDelay", MetricKind.Delay, 88), "中位延迟", "MedianDelay", false);
+        AddColumn(grid, MetricColumn("中位速度", "SpeedText", "MedianSpeed", MetricKind.Speed, 105), "中位速度", "MedianSpeed", true);
+        AddColumn(grid, MetricColumn("稳定分", "StabilityText", "StabilityScore", MetricKind.Score, 76), "稳定分", "StabilityScore", true);
+        AddColumn(grid, MetricColumn("综合分", "CombinedText", "CombinedScore", MetricKind.Score, 76), "综合分", "CombinedScore", true);
+        AddColumn(grid, TextColumn("样本", "SampleText", 112), "样本", "Samples", true);
+        AddColumn(grid, MetricColumn("状态", "Status", "Confidence", MetricKind.Confidence, 140), "状态", "Confidence", true);
+        grid.Sorting += SortGrid;
         grid.MouseDoubleClick += async (_, _) => { if (grid.SelectedItem is NodeScore score) await Switch(score); };
         root.Children.Add(grid);
         return root;
@@ -339,6 +344,39 @@ public sealed class MainWindow : Window
     {
         _rows.Clear();
         foreach (var score in _allScores.Where(x => _selectedSubscription is null || SubscriptionKey(x) == _selectedSubscription)) _rows.Add(score);
+        ApplyCurrentSort();
+    }
+
+    private void SortGrid(object? sender, DataGridSortingEventArgs e)
+    {
+        e.Handled = true;
+        if (!_sortColumns.TryGetValue(e.Column, out var info)) return;
+        if (_sortProperty == info.Property)
+            _sortDirection = _sortDirection == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending;
+        else
+        {
+            _sortProperty = info.Property;
+            _sortDirection = info.FirstDescending ? ListSortDirection.Descending : ListSortDirection.Ascending;
+        }
+        ApplyCurrentSort();
+    }
+
+    private void ApplyCurrentSort()
+    {
+        var view = CollectionViewSource.GetDefaultView(_rows);
+        view.SortDescriptions.Clear();
+        foreach (var pair in _sortColumns)
+        {
+            pair.Key.Header = pair.Value.Header;
+            pair.Key.SortDirection = null;
+        }
+        if (_sortProperty is null) return;
+        view.SortDescriptions.Add(new SortDescription(_sortProperty, _sortDirection));
+        foreach (var pair in _sortColumns.Where(x => x.Value.Property == _sortProperty))
+        {
+            pair.Key.Header = $"{pair.Value.Header} {(_sortDirection == ListSortDirection.Descending ? "↓" : "↑")}";
+            pair.Key.SortDirection = _sortDirection;
+        }
     }
 
     private void UpdateScopeBadge()
@@ -439,6 +477,14 @@ public sealed class MainWindow : Window
     private static string SubscriptionKey(NodeScore score) => $"{score.ClientName} / {score.Subscription}";
     private static string Yes(bool value) => value ? "✓" : "×";
     private static string Mark(bool value) => value ? "✓" : "—";
+
+    private void AddColumn(DataGrid grid, DataGridColumn column, string header, string property, bool firstDescending)
+    {
+        column.SortMemberPath = property;
+        _sortColumns[column] = new(header, property, firstDescending);
+        grid.Columns.Add(column);
+    }
+
     private static DataGridTextColumn TextColumn(string header, string binding, double width) => new() { Header = header, Binding = new Binding(binding), Width = new DataGridLength(width) };
     private static DataGridTemplateColumn MetricColumn(string header, string text, string value, MetricKind kind, double width)
     {
@@ -452,6 +498,8 @@ public sealed class MainWindow : Window
 }
 
 public enum MetricKind { Success, Delay, Speed, Score, Confidence }
+
+public sealed record SortColumnInfo(string Header, string Property, bool FirstDescending);
 
 public sealed class MetricBrushConverter(MetricKind kind) : IValueConverter
 {

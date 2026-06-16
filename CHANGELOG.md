@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.6
+
+- Added explicit table header sorting with visible direction arrows.
+- Made metric columns choose useful first-click directions: reliability, speed, stability, balanced score, samples, and status sort high-to-low first; latency sorts low-to-high first.
+- Preserved the active table sort after background refreshes and subscription filtering.
+- Added release-page notes describing what the software does and which download normal users should choose.
+
 ## 0.4.5
 
 - Added a dedicated ProxyMonitor application icon for the window, executable, tray, installer, and shortcuts.
