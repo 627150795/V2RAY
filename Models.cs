@@ -16,6 +16,10 @@ public sealed class MonitorSettings
     public bool EnableMihomo { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;
     public int DelayIntervalMinutes { get; set; } = 30;
+    public bool EnableIdleDelayProbe { get; set; } = true;
+    public int IdleDelayIntervalMinutes { get; set; } = 10;
+    public int IdleRequiredMinutes { get; set; } = 3;
+    public int IdleNetworkThresholdKBps { get; set; } = 128;
     public string DailySpeedTime { get; set; } = "03:00";
     public int SpeedLimitBytes { get; set; } = 2_097_152;
     public int RefineSpeedLimitBytes { get; set; } = 10_485_760;
@@ -27,6 +31,7 @@ public sealed class MonitorSettings
     public double DelayWeight { get; set; } = .25;
     public bool Paused { get; set; }
     public DateTime? LastDelayRun { get; set; }
+    public DateTime? LastIdleDelayRun { get; set; }
     public DateTime? LastSpeedRun { get; set; }
     public string? StableRecommendationNodeId { get; set; }
     public string? FastRecommendationNodeId { get; set; }

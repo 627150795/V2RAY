@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.8
+
+- Added network-idle delay probing to collect extra low-traffic reliability samples only when the machine is not actively using much bandwidth.
+- Added settings for idle probing interval, required idle minutes, and network idle threshold.
+- Added hover explanations for table headers so users can understand success rate, latency, speed, stability score, balanced score, samples, and status.
+
 ## 0.4.7
 
 - Kept rows with missing metric data at the bottom for metric sorting in both ascending and descending directions.

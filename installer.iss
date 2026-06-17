@@ -1,5 +1,5 @@
 #define AppName "多客户端节点监控"
-#define AppVersion "0.4.7"
+#define AppVersion "0.4.8"
 #define AppExe "ProxyMonitor.exe"
 
 [Setup]
@@ -9,7 +9,7 @@ AppVersion={#AppVersion}
 DefaultDirName={localappdata}\Programs\ProxyMonitor
 DefaultGroupName={#AppName}
 OutputDir=artifacts
-OutputBaseFilename=ProxyMonitor-Setup-0.4.7
+OutputBaseFilename=ProxyMonitor-Setup-0.4.8
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest

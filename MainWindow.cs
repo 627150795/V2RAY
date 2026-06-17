@@ -24,6 +24,7 @@ public sealed class MainWindow : Window
     private readonly Border _scopeBadge = new();
     private readonly TextBlock _scopeText = new();
     private readonly Dictionary<DataGridColumn, SortColumnInfo> _sortColumns = [];
+    private readonly NetworkIdleMonitor _networkIdle = new();
     private readonly WrapPanel _subscriptions = new() { Margin = new Thickness(0, 0, 0, 8) };
     private readonly WrapPanel _clients = new() { Margin = new Thickness(0, 0, 0, 8) };
     private List<NodeScore> _allScores = [];
@@ -157,16 +158,16 @@ public sealed class MainWindow : Window
             RowBackground = Brushes.White, AlternatingRowBackground = UiColors.Alternate, AlternationCount = 2,
             BorderBrush = UiColors.Border, RowHeight = 28, HeadersVisibility = DataGridHeadersVisibility.Column
         };
-        AddColumn(grid, TextColumn("客户端", "ClientName", 115), "客户端", "ClientName", false);
-        AddColumn(grid, TextColumn("节点", "Name", 225), "节点", "Name", false);
-        AddColumn(grid, TextColumn("订阅", "Subscription", 165), "订阅", "Subscription", false);
-        AddColumn(grid, MetricColumn("延迟成功率", "SuccessText", "SuccessRate", MetricKind.Success, 82), "延迟成功率", "SuccessRate", true);
-        AddColumn(grid, MetricColumn("中位延迟", "DelayText", "MedianDelay", MetricKind.Delay, 88), "中位延迟", "MedianDelay", false);
-        AddColumn(grid, MetricColumn("中位速度", "SpeedText", "MedianSpeed", MetricKind.Speed, 105), "中位速度", "MedianSpeed", true);
-        AddColumn(grid, MetricColumn("稳定分", "StabilityText", "StabilityScore", MetricKind.Score, 76), "稳定分", "StabilityScore", true);
-        AddColumn(grid, MetricColumn("综合分", "CombinedText", "CombinedScore", MetricKind.Score, 76), "综合分", "CombinedScore", true);
-        AddColumn(grid, TextColumn("样本", "SampleText", 112), "样本", "Samples", true);
-        AddColumn(grid, MetricColumn("状态", "Status", "Confidence", MetricKind.Confidence, 140), "状态", "Confidence", true);
+        AddColumn(grid, TextColumn("客户端", "ClientName", 115), "客户端", "ClientName", false, "节点来自哪个代理客户端。");
+        AddColumn(grid, TextColumn("节点", "Name", 225), "节点", "Name", false, "节点名称。双击节点会先复测，再确认切换。");
+        AddColumn(grid, TextColumn("订阅", "Subscription", 165), "订阅", "Subscription", false, "节点所属订阅组。点击上方订阅卡片可按组筛选推荐。");
+        AddColumn(grid, MetricColumn("延迟成功率", "SuccessText", "SuccessRate", MetricKind.Success, 82), "延迟成功率", "SuccessRate", true, "最近历史窗口内真实代理延迟测试的平均成功率。节点经常偶发连不上时，这里会下降。正式推荐通常要求整体和近期都达到 90%。");
+        AddColumn(grid, MetricColumn("中位延迟", "DelayText", "MedianDelay", MetricKind.Delay, 88), "中位延迟", "MedianDelay", false, "最近历史窗口内成功延迟样本的中位数。越低越好；排序时无数据节点永远排最后。");
+        AddColumn(grid, MetricColumn("中位速度", "SpeedText", "MedianSpeed", MetricKind.Speed, 105), "中位速度", "MedianSpeed", true, "轻量测速的中位数。它只做相对参考，不会长时间跑满带宽；无有效测速节点排序时排最后。");
+        AddColumn(grid, MetricColumn("稳定分", "StabilityText", "StabilityScore", MetricKind.Score, 76), "稳定分", "StabilityScore", true, "稳定分主要惩罚连不上和波动：40% 总成功率、30% 近期成功率、15% 抖动、15% 高位延迟。偶发掉线会明显拉低近期成功率和连续失败惩罚。");
+        AddColumn(grid, MetricColumn("综合分", "CombinedText", "CombinedScore", MetricKind.Score, 76), "综合分", "CombinedScore", true, "综合分默认按稳定 45%、速度 30%、延迟 25% 加权，并乘以样本置信度和近期异常惩罚。它适合做最终推荐，不是单纯选最快。");
+        AddColumn(grid, TextColumn("样本", "SampleText", 112), "样本", "Samples", true, "当前历史窗口内的延迟样本数和有效速度样本数。样本越多，推荐越可信。");
+        AddColumn(grid, MetricColumn("状态", "Status", "Confidence", MetricKind.Confidence, 140), "状态", "Confidence", true, "说明当前节点为什么还不能正式推荐，例如还差几次延迟、还差几次有效测速、成功率未达标或近期连续失败。");
         grid.Sorting += SortGrid;
         grid.MouseDoubleClick += async (_, _) => { if (grid.SelectedItem is NodeScore score) await Switch(score); };
         root.Children.Add(grid);
@@ -369,7 +370,7 @@ public sealed class MainWindow : Window
         view.SortDescriptions.Clear();
         foreach (var pair in _sortColumns)
         {
-            pair.Key.Header = pair.Value.Header;
+            pair.Key.Header = HeaderBlock(pair.Value.Header, pair.Value.Tooltip);
             pair.Key.SortDirection = null;
         }
         if (_sortProperty is null) return;
@@ -379,7 +380,7 @@ public sealed class MainWindow : Window
             view.SortDescriptions.Add(new SortDescription(_sortProperty, _sortDirection));
         foreach (var pair in _sortColumns.Where(x => x.Value.Property == _sortProperty))
         {
-            pair.Key.Header = $"{pair.Value.Header} {(_sortDirection == ListSortDirection.Descending ? "↓" : "↑")}";
+            pair.Key.Header = HeaderBlock($"{pair.Value.Header} {(_sortDirection == ListSortDirection.Descending ? "↓" : "↑")}", pair.Value.Tooltip);
             pair.Key.SortDirection = _sortDirection;
         }
     }
@@ -430,6 +431,22 @@ public sealed class MainWindow : Window
         if (_settings.Paused || _engine.IsRunning) return;
         if (_settings.LastDelayRun is null || DateTime.Now - _settings.LastDelayRun > TimeSpan.FromMinutes(_settings.DelayIntervalMinutes)) await _engine.RunAsync("delay");
         else if ((_settings.LastSpeedRun?.Date ?? DateTime.MinValue.Date) < DateTime.Today && DateTime.Now.TimeOfDay >= TimeSpan.Parse(_settings.DailySpeedTime) && (DateTime.Now.Date > _started.Date || DateTime.Now - _started >= TimeSpan.FromMinutes(10))) await _engine.RunAsync("speed");
+        else if (ShouldRunIdleDelayProbe()) await RunIdleDelayProbe();
+    }
+
+    private bool ShouldRunIdleDelayProbe()
+    {
+        if (!_settings.EnableIdleDelayProbe) return false;
+        if (_settings.LastIdleDelayRun is not null && DateTime.Now - _settings.LastIdleDelayRun < TimeSpan.FromMinutes(_settings.IdleDelayIntervalMinutes)) return false;
+        return _networkIdle.IsIdle(_settings);
+    }
+
+    private async Task RunIdleDelayProbe()
+    {
+        SetStatus("网络空闲，正在补充低流量延迟巡检");
+        await _engine.RunAsync("delay");
+        _settings.LastIdleDelayRun = DateTime.Now;
+        Paths.SaveSettings(_settings);
     }
 
     private Task PickPath()
@@ -483,11 +500,23 @@ public sealed class MainWindow : Window
     private static string Yes(bool value) => value ? "✓" : "×";
     private static string Mark(bool value) => value ? "✓" : "—";
 
-    private void AddColumn(DataGrid grid, DataGridColumn column, string header, string property, bool firstDescending)
+    private void AddColumn(DataGrid grid, DataGridColumn column, string header, string property, bool firstDescending, string? tooltip = null)
     {
         column.SortMemberPath = property;
-        _sortColumns[column] = new(header, property, firstDescending);
+        column.Header = HeaderBlock(header, tooltip);
+        _sortColumns[column] = new(header, property, firstDescending, tooltip);
         grid.Columns.Add(column);
+    }
+
+    private static TextBlock HeaderBlock(string text, string? tooltip)
+    {
+        return new TextBlock
+        {
+            Text = text,
+            ToolTip = tooltip,
+            Foreground = UiColors.Text,
+            TextWrapping = TextWrapping.NoWrap
+        };
     }
 
     private static DataGridTextColumn TextColumn(string header, string binding, double width) => new() { Header = header, Binding = new Binding(binding), Width = new DataGridLength(width) };
@@ -504,7 +533,7 @@ public sealed class MainWindow : Window
 
 public enum MetricKind { Success, Delay, Speed, Score, Confidence }
 
-public sealed record SortColumnInfo(string Header, string Property, bool FirstDescending);
+public sealed record SortColumnInfo(string Header, string Property, bool FirstDescending, string? Tooltip);
 
 public sealed class NodeScoreComparer(string property, ListSortDirection direction) : IComparer
 {
@@ -590,11 +619,23 @@ public sealed class SettingsWindow : Window
 {
     public SettingsWindow(MonitorSettings settings)
     {
-        Title = "监控设置"; Width = 430; Height = 730; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var panel = new StackPanel { Margin = new Thickness(20) }; Content = panel;
+        Title = "监控设置"; Width = 460; Height = 760; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         var startup = new CheckBox { Content = "开机后自动启动监控", IsChecked = settings.StartWithWindows, Margin = new Thickness(0, 0, 0, 8) };
         panel.Children.Add(startup);
         var delay = Field(panel, "延迟测试间隔（分钟）", settings.DelayIntervalMinutes.ToString());
+        var idleProbe = new CheckBox
+        {
+            Content = "网络空闲时自动补充延迟巡检",
+            IsChecked = settings.EnableIdleDelayProbe,
+            Margin = new Thickness(0, 8, 0, 4),
+            ToolTip = "只做小请求延迟测试，不做下载测速；用于抓出偶发连不上的节点。"
+        };
+        panel.Children.Add(idleProbe);
+        var idleInterval = Field(panel, "空闲巡检最短间隔（分钟）", settings.IdleDelayIntervalMinutes.ToString());
+        var idleMinutes = Field(panel, "判定网络空闲需连续（分钟）", settings.IdleRequiredMinutes.ToString());
+        var idleThreshold = Field(panel, "网络空闲阈值（KiB/s）", settings.IdleNetworkThresholdKBps.ToString());
         var time = Field(panel, "每日速度测试时间（HH:mm）", settings.DailySpeedTime);
         var limit = Field(panel, "全节点初筛上限（MiB）", (settings.SpeedLimitBytes / 1048576d).ToString("0.##"));
         var refineLimit = Field(panel, "高速候选精测上限（MiB）", (settings.RefineSpeedLimitBytes / 1048576d).ToString("0.##"));
@@ -612,6 +653,10 @@ public sealed class SettingsWindow : Window
                 var weights = new[] { double.Parse(stability.Text), double.Parse(speed.Text), double.Parse(latency.Text) };
                 if (weights.Sum() <= 0) throw new InvalidDataException("权重总和必须大于零");
                 settings.DelayIntervalMinutes = Math.Max(5, int.Parse(delay.Text)); settings.DailySpeedTime = TimeSpan.Parse(time.Text).ToString(@"hh\:mm");
+                settings.EnableIdleDelayProbe = idleProbe.IsChecked == true;
+                settings.IdleDelayIntervalMinutes = Math.Clamp(int.Parse(idleInterval.Text), 5, 240);
+                settings.IdleRequiredMinutes = Math.Clamp(int.Parse(idleMinutes.Text), 1, 30);
+                settings.IdleNetworkThresholdKBps = Math.Clamp(int.Parse(idleThreshold.Text), 16, 4096);
                 settings.SpeedLimitBytes = Math.Clamp((int)(double.Parse(limit.Text) * 1048576), 65536, 20 * 1048576);
                 settings.RefineSpeedLimitBytes = Math.Clamp((int)(double.Parse(refineLimit.Text) * 1048576), settings.SpeedLimitBytes, 50 * 1048576);
                 settings.RefineTopCount = Math.Clamp(int.Parse(refineCount.Text), 1, 50); settings.SpeedTimeoutSeconds = Math.Clamp(int.Parse(timeout.Text), 2, 30); settings.HistoryDays = Math.Clamp(int.Parse(days.Text), 1, 30);
