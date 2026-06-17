@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.11
+
+- Fixed median calculation for even-sized sample sets by averaging the two middle values instead of using the lower middle value.
+- Added a regression test for even-sample median scoring.
+
 ## 0.4.10
 
 - Added a recent-recovery path for stability eligibility: nodes with weak seven-day success but excellent recent delay samples can re-enter recommendations instead of being blocked by old failures.

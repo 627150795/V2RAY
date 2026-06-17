@@ -136,7 +136,14 @@ public sealed class HistoryStore
         if (x.RecentFailures >= 2) penalty *= .55;
         return penalty;
     }
-    private static double Median(List<double> x) => x.Count == 0 ? 0 : Percentile(x, .5);
+    internal static double MedianForTest(List<double> x) => Median(x);
+
+    private static double Median(List<double> x)
+    {
+        if (x.Count == 0) return 0;
+        var mid = x.Count / 2;
+        return x.Count % 2 == 1 ? x[mid] : (x[mid - 1] + x[mid]) / 2;
+    }
     private static double Percentile(List<double> x, double p) => x.Count == 0 ? 0 : x[(int)Math.Clamp(Math.Ceiling(p * x.Count) - 1, 0, x.Count - 1)];
     private static void Rank(List<NodeScore> xs, Func<NodeScore, double> value, Action<NodeScore, double> set)
     {

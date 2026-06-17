@@ -14,6 +14,7 @@ public static class SelfTest
         Check(ReferenceEquals(UiColors.ForScore(25), UiColors.Poor), "偏低分显示浅橙红", failures);
         Check(ReferenceEquals(UiColors.ForScore(10), UiColors.Bad), "低分显示红色", failures);
         Check(ReferenceEquals(UiColors.ForScore(0), UiColors.Empty), "无数据显示灰色", failures);
+        Check(Math.Abs(HistoryStore.MedianForTest([1, 2, 100, 101]) - 51) < .000001, "偶数样本中位数取两侧平均", failures);
 
         var emptyDelay = new NodeScore { Name = "empty" };
         var validDelay = new NodeScore { Name = "valid", Samples = 1, MedianDelay = 120 };
