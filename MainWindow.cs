@@ -31,6 +31,9 @@ public sealed class MainWindow : Window
     private string? _selectedSubscription;
     private string? _sortProperty;
     private ListSortDirection _sortDirection;
+    private double _subscriptionViewportWidth = 760;
+    private int _visibleSubscriptionCards;
+    private bool _showUnavailableSubscriptions;
     private readonly Forms.NotifyIcon? _tray;
     private readonly System.Drawing.Icon? _trayIcon;
     private readonly System.Windows.Threading.DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -142,8 +145,18 @@ public sealed class MainWindow : Window
         var subscriptionBox = new GroupBox
         {
             Header = "客户端与订阅概览（点击筛选）",
-            Content = _subscriptions,
+            Content = new ScrollViewer
+            {
+                Content = _subscriptions,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            },
             Padding = new Thickness(8), Margin = new Thickness(6, 0, 0, 0), BorderBrush = UiColors.Border
+        };
+        subscriptionBox.SizeChanged += (_, e) =>
+        {
+            _subscriptionViewportWidth = Math.Max(260, e.NewSize.Width - 34);
+            UpdateSubscriptionCardWidths();
         };
         Grid.SetColumn(subscriptionBox, 1); overview.Children.Add(subscriptionBox);
         DockPanel.SetDock(overview, Dock.Top); root.Children.Add(overview);
@@ -306,8 +319,15 @@ public sealed class MainWindow : Window
     private void RefreshSubscriptions()
     {
         _subscriptions.Children.Clear();
+        var groups = _allScores.GroupBy(SubscriptionKey).OrderBy(x => x.Key)
+            .Select(x => new SubscriptionGroup(x.Key, x.ToList())).ToList();
+        var hidden = groups.Where(x => x.Available == 0 && x.Name != _selectedSubscription).ToList();
+        var visible = _showUnavailableSubscriptions ? groups : groups.Except(hidden).ToList();
+        _visibleSubscriptionCards = 1 + visible.Count + (hidden.Count > 0 ? 1 : 0);
         AddSubscription("全部订阅", _allScores, null);
-        foreach (var group in _allScores.GroupBy(SubscriptionKey).OrderBy(x => x.Key)) AddSubscription(group.Key, group.ToList(), group.Key);
+        foreach (var group in visible) AddSubscription(group.Name, group.Scores, group.Name);
+        if (hidden.Count > 0) AddUnavailableSubscriptionsBadge(hidden);
+        UpdateSubscriptionCardWidths();
     }
 
     private void AddSubscription(string name, IReadOnlyList<NodeScore> scores, string? filter)
@@ -320,7 +340,8 @@ public sealed class MainWindow : Window
         {
             Background = UiColors.ForRatio(availability), BorderBrush = filter == _selectedSubscription ? UiColors.Accent : UiColors.Border,
             BorderThickness = new Thickness(filter == _selectedSubscription ? 2 : 1), Padding = new Thickness(8, 5, 8, 5),
-            Margin = new Thickness(0, 0, 6, 6), Width = 265, MinHeight = 78, HorizontalContentAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 0, 6, 6), Width = SubscriptionCardWidth(), MinHeight = 78, HorizontalContentAlignment = HorizontalAlignment.Left,
+            Tag = "subscription-card",
             Content = new TextBlock
             {
                 Text = $"{name}\n可用 {available}/{scores.Count}  ·  {availability:P0}\n平均延迟 {(delay > 0 ? $"{delay:F0} ms" : "-")}\n最佳 {best?.Name ?? "-"}",
@@ -337,6 +358,54 @@ public sealed class MainWindow : Window
             UpdateScopeBadge();
         };
         _subscriptions.Children.Add(button);
+    }
+
+    private void AddUnavailableSubscriptionsBadge(IReadOnlyList<SubscriptionGroup> hidden)
+    {
+        var text = _showUnavailableSubscriptions ? $"收起 {hidden.Count} 个不可用订阅" : $"隐藏 {hidden.Count} 个不可用订阅";
+        var tooltip = string.Join("\n", hidden.Select(x => $"{x.Name}: 0/{x.Scores.Count}"));
+        var button = new System.Windows.Controls.Button
+        {
+            Background = UiColors.Empty,
+            BorderBrush = UiColors.Border,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(8, 5, 8, 5),
+            Margin = new Thickness(0, 0, 6, 6),
+            Width = SubscriptionCardWidth(),
+            MinHeight = 42,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Tag = "subscription-card",
+            Content = new TextBlock
+            {
+                Text = text,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = UiColors.Muted,
+                FontSize = 12,
+                LineHeight = 15
+            },
+            ToolTip = tooltip
+        };
+        button.Click += (_, _) =>
+        {
+            _showUnavailableSubscriptions = !_showUnavailableSubscriptions;
+            RefreshSubscriptions();
+        };
+        _subscriptions.Children.Add(button);
+    }
+
+    private double SubscriptionCardWidth()
+    {
+        var count = Math.Max(1, _visibleSubscriptionCards);
+        var columns = Math.Min(4, count);
+        while (columns > 1 && _subscriptionViewportWidth / columns < 180) columns--;
+        return Math.Max(170, Math.Floor(_subscriptionViewportWidth / columns) - 8);
+    }
+
+    private void UpdateSubscriptionCardWidths()
+    {
+        var width = SubscriptionCardWidth();
+        foreach (var button in _subscriptions.Children.OfType<System.Windows.Controls.Button>().Where(x => Equals(x.Tag, "subscription-card")))
+            button.Width = width;
     }
 
     private List<NodeScore> ActiveScores() =>
@@ -532,6 +601,11 @@ public sealed class MainWindow : Window
 }
 
 public enum MetricKind { Success, Delay, Speed, Score, Confidence }
+
+public sealed record SubscriptionGroup(string Name, IReadOnlyList<NodeScore> Scores)
+{
+    public int Available => Scores.Count(x => x.SuccessRate > 0);
+}
 
 public sealed record SortColumnInfo(string Header, string Property, bool FirstDescending, string? Tooltip);
 

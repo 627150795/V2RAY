@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.12
+
+- Added vertical scrolling to the client/subscription overview area so subscription cards are no longer clipped.
+- Folded subscriptions with zero readable/available nodes into a compact toggle badge by default.
+- Made visible subscription cards resize to fill the available overview width instead of leaving a large empty area on the right.
+
 ## 0.4.11
 
 - Fixed median calculation for even-sized sample sets by averaging the two middle values instead of using the lower middle value.
