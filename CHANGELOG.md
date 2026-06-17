@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.9
+
+- Made the stability score directly penalize recent consecutive delay-test failures, so intermittently unreachable nodes drop more visibly in stability ranking.
+
 ## 0.4.8
 
 - Added network-idle delay probing to collect extra low-traffic reliability samples only when the machine is not actively using much bandwidth.

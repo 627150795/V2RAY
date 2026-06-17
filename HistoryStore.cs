@@ -115,7 +115,9 @@ public sealed class HistoryStore
         var recentAvailability = x.RecentSuccessRate * 100;
         var jitter = 100 * Math.Exp(-x.Jitter / 120);
         var recentP95 = 100 * Math.Exp(-(x.RecentP95Delay > 0 ? x.RecentP95Delay : x.P95Delay) / 800);
-        return .40 * availability + .30 * recentAvailability + .15 * jitter + .15 * recentP95;
+        var baseScore = .40 * availability + .30 * recentAvailability + .15 * jitter + .15 * recentP95;
+        var failurePenalty = x.RecentFailures switch { >= 3 => .35, 2 => .55, 1 => .82, _ => 1d };
+        return baseScore * failurePenalty;
     }
     private static double EffectiveDelay(NodeScore x) => x.RecentMedianDelay > 0 ? .35 * x.MedianDelay + .65 * x.RecentMedianDelay : x.MedianDelay;
     private static double AbsoluteDelay(double value) => value <= 0 ? 0 : 100 * Math.Exp(-value / 500);
