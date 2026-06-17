@@ -6,6 +6,7 @@ public static class QualityThresholds
     public const int RequiredSpeedSamples = 3;
     public const int RecentDelaySamples = 12;
     public const double RequiredSuccessRate = .90;
+    public const double RecoverySuccessRate = .97;
     public const double MinUsefulSpeedBytesPerSecond = 16 * 1024;
 }
 
@@ -66,8 +67,13 @@ public sealed class NodeScore
     public double DelayScore { get; set; }
     public double CombinedScore { get; set; }
     public double Confidence { get; set; }
+    public bool RecentlyRecovered => Samples >= QualityThresholds.RequiredDelaySamples
+        && SuccessRate < QualityThresholds.RequiredSuccessRate
+        && RecentSuccessRate >= QualityThresholds.RecoverySuccessRate
+        && RecentFailures == 0
+        && RecentMedianDelay > 0;
     public bool StableEnough => Samples >= QualityThresholds.RequiredDelaySamples
-        && SuccessRate >= QualityThresholds.RequiredSuccessRate
+        && (SuccessRate >= QualityThresholds.RequiredSuccessRate || RecentlyRecovered)
         && RecentSuccessRate >= QualityThresholds.RequiredSuccessRate
         && RecentFailures < 2;
     public bool SpeedEnough => StableEnough && SpeedSamples >= QualityThresholds.RequiredSpeedSamples && MedianSpeed >= QualityThresholds.MinUsefulSpeedBytesPerSecond;
@@ -93,6 +99,7 @@ public sealed class NodeScore
         if (missingSpeed > 0) return $"还差 {missingSpeed} 次有效测速";
         if (MedianSpeed < QualityThresholds.MinUsefulSpeedBytesPerSecond) return "测速低于有效阈值";
         if (RecentSuccessRate < QualityThresholds.RequiredSuccessRate) return $"近期成功率需到 {QualityThresholds.RequiredSuccessRate:P0}";
+        if (SuccessRate < QualityThresholds.RequiredSuccessRate && RecentlyRecovered) return "近期已恢复，继续观察";
         if (SuccessRate < QualityThresholds.RequiredSuccessRate) return $"成功率需到 {QualityThresholds.RequiredSuccessRate:P0}";
         if (RecentFailures >= 2) return $"连续失败 {RecentFailures} 次";
         return "继续观察";

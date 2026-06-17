@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.10
+
+- Added a recent-recovery path for stability eligibility: nodes with weak seven-day success but excellent recent delay samples can re-enter recommendations instead of being blocked by old failures.
+- Added diagnostics output and tests for recently recovered nodes.
+
 ## 0.4.9
 
 - Made the stability score directly penalize recent consecutive delay-test failures, so intermittently unreachable nodes drop more visibly in stability ranking.

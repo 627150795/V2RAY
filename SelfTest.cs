@@ -30,6 +30,7 @@ public static class SelfTest
         var failing = new NodeScore { Samples = 24, SpeedSamples = 3, SuccessRate = .95, RecentSuccessRate = .95, RecentFailures = 2 };
         Check(ready.DataEnough, "正式推荐门槛通过", failures);
         Check(new NodeScore { Samples = 24, SpeedSamples = 0, SuccessRate = .95, RecentSuccessRate = .95, RecentFailures = 0 }.StableEnough, "稳定推荐不依赖速度样本", failures);
+        Check(new NodeScore { Samples = 24, SpeedSamples = 0, SuccessRate = .87, RecentSuccessRate = 1, RecentMedianDelay = 120, RecentFailures = 0 }.StableEnough, "近期恢复节点重新进入稳定候选", failures);
         Check(new NodeScore { Samples = 79, SpeedSamples = 0, SuccessRate = .94, RecentSuccessRate = .94, RecentFailures = 0 }.Status == "还差 3 次有效测速", "状态显示缺少的测速次数", failures);
         Check(new NodeScore { Samples = 10, SpeedSamples = 0, SuccessRate = .95, RecentSuccessRate = .95, RecentFailures = 0 }.Status == "还差 14 延迟 / 3 测速", "状态显示缺少的延迟与测速次数", failures);
         Check(!sparse.DataEnough && !unreliable.DataEnough && !recentlyUnreliable.DataEnough && !failing.DataEnough, "样本与近期可靠性门槛生效", failures);

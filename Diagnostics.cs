@@ -28,6 +28,7 @@ public static class Diagnostics
                 SpeedScore = $"{score.SpeedScore:F1}",
                 DelayScore = $"{score.DelayScore:F1}",
                 Combined = score.CombinedText,
+                score.RecentlyRecovered,
                 score.StableEnough,
                 score.SpeedEnough,
                 score.Status
@@ -99,6 +100,7 @@ public static class Diagnostics
         Score = $"{selector(score):F1}",
         score.StableEnough,
         score.SpeedEnough,
+        score.RecentlyRecovered,
         RecentSuccessRate = $"{score.RecentSuccessRate:P0}",
         score.RecentFailures,
         score.Status
