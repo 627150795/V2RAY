@@ -1,5 +1,5 @@
 #define AppName "多客户端节点监控"
-#define AppVersion "0.4.12"
+#define AppVersion "0.4.13"
 #define AppExe "ProxyMonitor.exe"
 
 [Setup]
@@ -9,7 +9,7 @@ AppVersion={#AppVersion}
 DefaultDirName={localappdata}\Programs\ProxyMonitor
 DefaultGroupName={#AppName}
 OutputDir=artifacts
-OutputBaseFilename=ProxyMonitor-Setup-0.4.12
+OutputBaseFilename=ProxyMonitor-Setup-0.4.13
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -26,7 +26,7 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"; IconFilename: "{app}\ProxyMonitor.ico"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; IconFilename: "{app}\ProxyMonitor.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; IconFilename: "{app}\ProxyMonitor.ico"
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ProxyMonitor"; ValueData: """{app}\{#AppExe}"" --background"; Flags: uninsdeletevalue

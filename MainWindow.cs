@@ -493,7 +493,18 @@ public sealed class MainWindow : Window
             FontSize = 12, LineHeight = 15
         });
         target.Child = panel;
+        target.ToolTip = node is null ? emptyText : CardTooltip(node, scoreLabel, value);
     }
+
+    private static string CardTooltip(NodeScore node, string scoreLabel, double value) =>
+        $"{node.Name}\n" +
+        $"{node.ClientName} / {node.Subscription}\n" +
+        $"{scoreLabel}：{value:F1}\n" +
+        $"综合分：{node.CombinedScore:F1}，稳定分：{node.StabilityScore:F1}，速度分：{node.SpeedScore:F1}，延迟分：{node.DelayScore:F1}\n" +
+        $"成功率：{node.SuccessText}，近期成功率：{node.RecentSuccessRate:P1}，连续失败：{node.RecentFailures}\n" +
+        $"7 天中位延迟：{node.DelayText}，近期中位延迟：{(node.RecentMedianDelay > 0 ? $"{node.RecentMedianDelay:F0} ms" : "-")}，近期 P95：{(node.RecentP95Delay > 0 ? $"{node.RecentP95Delay:F0} ms" : "-")}\n" +
+        $"中位速度：{node.SpeedText}，样本：{node.Samples} 延迟 / {node.SpeedSamples} 速度\n" +
+        $"状态：{node.Status}";
 
     private async Task Schedule()
     {

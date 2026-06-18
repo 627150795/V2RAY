@@ -14,6 +14,7 @@ public static class Diagnostics
         foreach (var score in scores.Where(x => terms.Count == 0 || terms.Any(t => x.Name.Contains(t, StringComparison.OrdinalIgnoreCase))))
             Console.WriteLine(JsonSerializer.Serialize(new
             {
+                score.NodeId,
                 score.ClientName,
                 score.Name,
                 score.Subscription,
@@ -23,6 +24,8 @@ public static class Diagnostics
                 RecentSuccessRate = $"{score.RecentSuccessRate:P0}",
                 score.RecentFailures,
                 Delay = score.DelayText,
+                RecentMedianDelay = $"{score.RecentMedianDelay:F0} ms",
+                RecentP95Delay = $"{score.RecentP95Delay:F0} ms",
                 Speed = score.SpeedText,
                 Stability = score.StabilityText,
                 SpeedScore = $"{score.SpeedScore:F1}",

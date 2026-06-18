@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.13
+
+- Tightened recent-recovery eligibility so historically unreliable nodes cannot enter formal recommendations just because the latest few delay probes succeeded.
+- Added recent tail-latency penalties to stability and combined scores, making large P95 spikes visibly lower recommendations.
+- Added recommendation-card tooltips with score breakdowns, recent median delay, recent P95 delay, success rates, and sample counts.
+- Expanded score diagnostics with node id and recent latency details.
+
 ## 0.4.12
 
 - Added vertical scrolling to the client/subscription overview area so subscription cards are no longer clipped.

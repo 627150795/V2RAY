@@ -6,6 +6,7 @@ public static class QualityThresholds
     public const int RequiredSpeedSamples = 3;
     public const int RecentDelaySamples = 12;
     public const double RequiredSuccessRate = .90;
+    public const double RecoveryMinimumSuccessRate = .88;
     public const double RecoverySuccessRate = .97;
     public const double MinUsefulSpeedBytesPerSecond = 16 * 1024;
 }
@@ -69,6 +70,7 @@ public sealed class NodeScore
     public double Confidence { get; set; }
     public bool RecentlyRecovered => Samples >= QualityThresholds.RequiredDelaySamples
         && SuccessRate < QualityThresholds.RequiredSuccessRate
+        && SuccessRate >= QualityThresholds.RecoveryMinimumSuccessRate
         && RecentSuccessRate >= QualityThresholds.RecoverySuccessRate
         && RecentFailures == 0
         && RecentMedianDelay > 0;
