@@ -178,7 +178,7 @@ public sealed class MainWindow : Window
         AddColumn(grid, MetricColumn("中位延迟", "DelayText", "MedianDelay", MetricKind.Delay, 88), "中位延迟", "MedianDelay", false, "最近历史窗口内成功延迟样本的中位数。越低越好；排序时无数据节点永远排最后。");
         AddColumn(grid, MetricColumn("中位速度", "SpeedText", "MedianSpeed", MetricKind.Speed, 105), "中位速度", "MedianSpeed", true, "轻量测速的中位数。它只做相对参考，不会长时间跑满带宽；无有效测速节点排序时排最后。");
         AddColumn(grid, MetricColumn("稳定分", "StabilityText", "StabilityScore", MetricKind.Score, 76), "稳定分", "StabilityScore", true, "稳定分主要惩罚连不上和波动：40% 总成功率、30% 近期成功率、15% 抖动、15% 高位延迟。偶发掉线会明显拉低近期成功率和连续失败惩罚。");
-        AddColumn(grid, MetricColumn("综合分", "CombinedText", "CombinedScore", MetricKind.Score, 76), "综合分", "CombinedScore", true, "综合分默认按稳定 45%、速度 30%、延迟 25% 加权，并乘以样本置信度和近期异常惩罚。它适合做最终推荐，不是单纯选最快。");
+        AddColumn(grid, MetricColumn("综合分", "CombinedText", "CombinedDisplayScore", MetricKind.Score, 76), "综合分", "CombinedScore", true, "综合分默认按稳定 45%、速度 30%、延迟 25% 加权，并乘以样本置信度和近期异常惩罚。它适合做最终推荐，不是单纯选最快。");
         AddColumn(grid, TextColumn("样本", "SampleText", 112), "样本", "Samples", true, "当前历史窗口内的延迟样本数和有效速度样本数。样本越多，推荐越可信。");
         AddColumn(grid, MetricColumn("状态", "Status", "Confidence", MetricKind.Confidence, 140), "状态", "Confidence", true, "说明当前节点为什么还不能正式推荐，例如还差几次延迟、还差几次有效测速、成功率未达标或近期连续失败。");
         grid.Sorting += SortGrid;
@@ -645,7 +645,7 @@ public sealed class NodeScoreComparer(string property, ListSortDirection directi
         nameof(NodeScore.MedianDelay) => score.Samples > 0 && score.MedianDelay > 0,
         nameof(NodeScore.MedianSpeed) => score.SpeedSamples > 0 && score.MedianSpeed >= QualityThresholds.MinUsefulSpeedBytesPerSecond,
         nameof(NodeScore.StabilityScore) => score.Samples > 0,
-        nameof(NodeScore.CombinedScore) => score.Samples > 0,
+        nameof(NodeScore.CombinedScore) => score.SpeedEnough,
         nameof(NodeScore.Samples) => score.Samples > 0,
         nameof(NodeScore.Confidence) => score.Samples > 0 || score.SpeedSamples > 0,
         _ => true

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.14
+
+- Mark nodes outside the formal recommendation gate as `候选外` in the combined-score column.
+- Keep non-candidate rows after valid recommendation candidates when sorting by combined score.
+
 ## 0.4.13
 
 - Tightened recent-recovery eligibility so historically unreliable nodes cannot enter formal recommendations just because the latest few delay probes succeeded.

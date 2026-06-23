@@ -23,6 +23,10 @@ public static class SelfTest
         var emptySpeed = new NodeScore { Name = "empty-speed", Samples = 1 };
         var validSpeed = new NodeScore { Name = "valid-speed", Samples = 1, SpeedSamples = 1, MedianSpeed = 1024 * 1024 };
         Check(new NodeScoreComparer(nameof(NodeScore.MedianSpeed), System.ComponentModel.ListSortDirection.Descending).Compare(emptySpeed, validSpeed) > 0, "empty speed sorts last", failures);
+        var ineligibleCombined = new NodeScore { Name = "ineligible-combined", Samples = 24, SpeedSamples = 3, MedianSpeed = QualityThresholds.MinUsefulSpeedBytesPerSecond, SuccessRate = .70, RecentSuccessRate = .70, CombinedScore = 90 };
+        var eligibleCombined = new NodeScore { Name = "eligible-combined", Samples = 24, SpeedSamples = 3, MedianSpeed = QualityThresholds.MinUsefulSpeedBytesPerSecond, SuccessRate = .95, RecentSuccessRate = .95, CombinedScore = 20 };
+        Check(ineligibleCombined.CombinedText == "候选外", "ineligible combined score is labelled outside candidates", failures);
+        Check(new NodeScoreComparer(nameof(NodeScore.CombinedScore), System.ComponentModel.ListSortDirection.Descending).Compare(ineligibleCombined, eligibleCombined) > 0, "ineligible combined score sorts after candidates", failures);
 
         var ready = new NodeScore { Samples = 24, SpeedSamples = 3, MedianSpeed = QualityThresholds.MinUsefulSpeedBytesPerSecond, SuccessRate = .95, RecentSuccessRate = .95, RecentFailures = 0 };
         var sparse = new NodeScore { Samples = 23, SpeedSamples = 3, SuccessRate = .95, RecentSuccessRate = .95, RecentFailures = 0 };
